@@ -204,12 +204,11 @@ async function downloadAttachment(client, messageId, attachment) {
 }
 
 async function uploadFileToMonday(itemId, filePath, attachment) {
-  const query = `mutation ($file: File!) { add_file_to_column(item_id: ${itemId}, column_id: "${FILE_COLUMN_ID}", file: $file) { id name } }`;
+  const query = `mutation addFile($file: File!) { add_file_to_column(item_id: ${itemId}, column_id: "${FILE_COLUMN_ID}", file: $file) { id name } }`;
   const bytes = await fs.readFile(filePath);
   const form = new FormData();
-  form.append("operations", JSON.stringify({ query, variables: { file: null } }));
-  form.append("map", JSON.stringify({ "0": ["variables.file"] }));
-  form.append("0", new Blob([bytes], { type: attachment.contentType }), attachment.name);
+  form.append("query", query);
+  form.append("variables[file]", new Blob([bytes], { type: attachment.contentType }), attachment.name);
   const response = await fetch("https://api.monday.com/v2/file", { method: "POST", headers: { Authorization: process.env.MONDAY_API_TOKEN }, body: form });
   const json = await response.json();
   if (!response.ok || json.errors) throw new Error(`Monday file upload failed: ${JSON.stringify(json.errors || json)}`);
