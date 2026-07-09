@@ -5,7 +5,7 @@ on:
     # Permanent daily run. GitHub Actions schedules are UTC. 13:00 UTC is 8:00 AM Central during CDT.
     - cron: "0 13 * * *"
     # Temporary schedule test for July 9, 2026. Remove after confirming GitHub emits a scheduled run.
-    - cron: "8 14 * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
