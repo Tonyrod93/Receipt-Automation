@@ -1,0 +1,43 @@
+name: Daily Outlook Receipts To Monday
+
+on:
+  schedule:
+    # GitHub Actions schedules are UTC. 13:00 UTC is 8:00 AM Central during CDT.
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  import-receipts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm install
+
+      - name: Import receipts
+        run: npm start
+        env:
+          MICROSOFT_TENANT_ID: ${{ secrets.MICROSOFT_TENANT_ID }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          MAILBOX_USER: ${{ secrets.MAILBOX_USER }}
+          MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LOOKBACK_DAYS: "7"
+
+      - name: Persist processed message ledger
+        run: |
+          if [ -f .processed-receipts.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .processed-receipts.json
+            git commit -m "Update processed receipt ledger" || true
+            git push || true
+          fi
