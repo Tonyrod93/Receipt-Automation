@@ -1,0 +1,13 @@
+{
+  "name": "capernaum-receipt-importer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/import-receipts.mjs"
+  },
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "openai": "^4.104.0"
+  }
+}
