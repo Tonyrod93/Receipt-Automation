@@ -46,6 +46,11 @@ const REQUIRED_ENV = [
 ];
 // Only the verified active intake folder. Historical archives are not an intake queue.
 const FOLDERS_TO_CHECK = ["Inbox/Capernaum Receipts", "Inbox/Biz Development Receipts", "Inbox/CS Projects/Biz Development Receipts"];
+const VERIFIED_FOLDER_IDS = {
+  marketing: "0b67a920099d0955150d60d5b545a3d487bcedfdf12da1d2e6aaa97fe2d9ea0b",
+  business: "c0d3daac5a2e4f639dc6c107f93aa9275e0c2dfb39bf87f364fdf6c27406bb15"
+};
+const normalizedId = value => createHash("sha256").update(value.replace(/\+/g, "-").replace(/\//g, "_")).digest("hex");
 let CATEGORY_LABELS = [];
 const PAYMENT_LABELS = ["Holly's Card", "Tony's Card", "Stephanie's Card"];
 
@@ -272,12 +277,17 @@ async function createMondayItem(receipt, message) {
 }
 
 async function listAttachments(client, messageId) {
-  const page = await client.api(`/users/${process.env.MAILBOX_USER}/messages/${messageId}/attachments`).top(50).get();
-  return (page.value || []).filter((attachment) =>
-    attachment["@odata.type"] === "#microsoft.graph.fileAttachment" &&
-    !attachment.isInline &&
-    /^(application\/pdf|image\/jpeg|image\/png|image\/webp)$/i.test(attachment.contentType || "")
-  );
+  let page = await client.api(`/users/${process.env.MAILBOX_USER}/messages/${messageId}/attachments`).top(50).get();
+  const attachments = [];
+  while (page) {
+    for (const attachment of page.value || []) {
+      if (attachment.isInline) continue;
+      if (attachment["@odata.type"] !== "#microsoft.graph.fileAttachment") throw new Error("Unsupported attachment needs manual preservation");
+      attachments.push(attachment);
+    }
+    page = page["@odata.nextLink"] ? await client.api(page["@odata.nextLink"]).get() : null;
+  }
+  return attachments;
 }
 
 async function downloadAttachment(client, messageId, attachment) {
@@ -326,6 +336,10 @@ async function main() {
   const folders = await listFolders(client);
   const targetFolders = folders.filter((folder) => FOLDERS_TO_CHECK.includes(folder.path));
   if (targetFolders.length !== 2 || targetFolders.filter(folder => folder.path === "Inbox/Capernaum Receipts").length !== 1) throw new Error("Expected exactly one of each verified intake folder");
+  for (const folder of targetFolders) {
+    const route = folder.path.endsWith("/Biz Development Receipts") ? "business" : "marketing";
+    if (normalizedId(folder.id) !== VERIFIED_FOLDER_IDS[route]) throw new Error("Intake folder identity changed; verify before importing");
+  }
   setRoute("marketing");
   const mondayItems = await readMondayItems();
   setRoute("business");
