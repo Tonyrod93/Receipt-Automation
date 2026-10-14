@@ -5,6 +5,20 @@ on:
     # GitHub Actions schedules are UTC. 13:00 UTC is 8:00 AM Central during CDT.
     - cron: "0 13 * * *"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Read-only preflight (false permits pending receipt creation)
+        type: choice
+        options: ['true', 'false']
+        default: 'true'
+      max_creates:
+        description: Maximum new pending items in this run
+        type: string
+        default: '1'
+
+concurrency:
+  group: receipt-intake
+  cancel-in-progress: false
 
 jobs:
   import-receipts:
@@ -18,6 +32,8 @@ jobs:
 
       - run: npm install
 
+      - run: node --test test/import-receipts.test.mjs
+
       - name: Import receipts
         run: npm start
         env:
@@ -27,4 +43,6 @@ jobs:
           MAILBOX_USER: ${{ secrets.MAILBOX_USER }}
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          LOOKBACK_DAYS: "7"
+          # Keep scheduled runs read-only until the live pilot is accepted.
+          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+          MAX_CREATES: ${{ inputs.max_creates || '1' }}
