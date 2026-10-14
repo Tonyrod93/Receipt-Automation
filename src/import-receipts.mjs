@@ -368,20 +368,29 @@ async function main() {
           try {
             const filePath = await downloadAttachment(client, message.id, attachment);
             const document = await readDocument(filePath);
-            attachments.push({attachment, filePath});
+            attachments.push({attachment:{...attachment,contentType:document.mime}, filePath});
             documents.push(document);
-          } catch { holdReason = 'An attachment could not be safely read. Open the original Outlook message and check the document.'; }
+          } catch (error) {
+            if (dryRun) console.log(JSON.stringify({check:'document-read',error:error?.name || 'Error',status:error?.statusCode || null}));
+            holdReason = 'An attachment could not be safely read. Open the original Outlook message and check the document.';
+          }
         }
-      } catch { holdReason = 'Attachments could not be retrieved. Open the original Outlook message to review and attach the receipt.'; }
+      } catch (error) {
+        if (dryRun) console.log(JSON.stringify({check:'attachment-list',error:error?.name || 'Error',status:error?.statusCode || null}));
+        holdReason = 'Attachments could not be retrieved. Open the original Outlook message to review and attach the receipt.';
+      }
+      if (documents.some(doc=>mondayItems.some(item=>notesFor(item).includes(`Attachment SHA-256: ${createHash('sha256').update(doc.bytes).digest('hex')}`)))) { summary.duplicates += 1; continue; }
       let receipt, evidence;
       try {
         evidence = await extractEvidence(openai, message, documents, CATEGORY_LABELS);
         receipt = evidence.receipt;
+        if (dryRun) console.log(JSON.stringify({check:'receipt-evidence',documents:documents.length,agreement:evidence.agreed,validFields:validateReceipt(receipt,{...message,evidenceText:evidence.text}),receipt:receipt.is_receipt,statement:receipt.is_statement,replacement:receipt.is_replacement}));
         if (!evidence.agreed || !validateReceipt(receipt, {...message, evidenceText:evidence.text}) || !['paid_total','invoice_total'].includes(receipt.amount_kind)) {
           holdReason ||= 'The receipt total, transaction date, vendor, reference or payment evidence could not be verified consistently. Check the original document; financial fields are intentionally blank.';
         }
         if (receipt.is_statement || receipt.is_replacement || !receipt.is_receipt) holdReason = 'This source may be a statement, free replacement, multiple transactions or another non-receipt. Review the original before treating it as an expense.';
-      } catch {
+      } catch (error) {
+        if (dryRun) console.log(JSON.stringify({check:'extraction',error:error?.name || 'Error',status:error?.status || null}));
         holdReason ||= 'Receipt extraction was unavailable. Check the original Outlook message and document; no financial values were inferred.';
       }
       if (!business && isBusinessVendor(message, receipt?.vendor || '')) { summary.routingHolds += 1; continue; }

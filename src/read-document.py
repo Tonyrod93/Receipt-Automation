@@ -18,11 +18,14 @@ def ocr(image):
     with tempfile.TemporaryDirectory(prefix="receipt-ocr-") as temp:
         image_path = pathlib.Path(temp) / "page.png"
         image.convert("RGB").save(image_path)
-        result = subprocess.run(
-            ["tesseract", str(image_path), "stdout", "--psm", "3"],
-            capture_output=True, timeout=40, check=True,
-        )
-        return result.stdout.decode("utf-8")
+        texts = []
+        for segmentation in ["3", "11"]:
+            result = subprocess.run(
+                ["tesseract", str(image_path), "stdout", "--psm", segmentation],
+                capture_output=True, timeout=40, check=True,
+            )
+            texts.append(result.stdout.decode("utf-8"))
+        return "\nOCR alternative layout\n".join(texts)
 
 
 def read_document(filename):
