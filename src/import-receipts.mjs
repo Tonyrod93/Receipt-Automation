@@ -367,6 +367,7 @@ async function main() {
         continue;
       }
       const messageHash = createHash("sha256").update(message.id).digest("hex");
+      if (process.env.PILOT_ONLY === "true" && !REVIEWED_BACKFILL.has(messageHash)) { summary.review += 1; continue; }
       if (HISTORICAL_MESSAGES.has(messageHash) && !REVIEWED_BACKFILL.has(messageHash)) { summary.review += 1; continue; }
       if (!business && isBusinessVendor(message)) { summary.routingHolds += 1; continue; }
       const receipt = await extractReceipt(openai, message);

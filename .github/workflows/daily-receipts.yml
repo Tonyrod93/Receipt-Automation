@@ -46,6 +46,7 @@ jobs:
           MAILBOX_USER: ${{ secrets.MAILBOX_USER }}
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # Keep scheduled runs read-only until the live pilot is accepted.
-          DRY_RUN: ${{ inputs.dry_run || 'true' }}
-          MAX_CREATES: ${{ inputs.max_creates || '1' }}
+          # Temporary verified-source pilot: only the reviewed backfill source may be created.
+          DRY_RUN: 'false'
+          PILOT_ONLY: 'true'
+          MAX_CREATES: '1'
