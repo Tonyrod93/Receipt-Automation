@@ -39,9 +39,11 @@ source-keyed item. No legacy receipt or approval status is overwritten.
 
 ## Run controls
 
-The workflow supports manual dry_run true/false and max_creates inputs. Initial
-repair deployment defaults to read-only, with a one-item pilot cap. Scheduled
-live activation requires successful live preflight and pilot readback.
+The existing daily 13:00 UTC schedule is live, capped at 25 new pending items per
+run. Code-update runs are read-only. Manual runs default to dry_run=true and a
+one-item cap; dry_run and max_creates can be set explicitly. The repair passed
+live preflight, one pending-item creation/readback, and a second live run which
+created zero duplicates. No receipt was approved or posted to a budget sheet.
 
 Existing secrets are reused: MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID,
 MICROSOFT_CLIENT_SECRET, MAILBOX_USER, MONDAY_API_TOKEN, OPENAI_API_KEY.

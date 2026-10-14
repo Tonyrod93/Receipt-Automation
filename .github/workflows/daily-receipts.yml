@@ -46,7 +46,7 @@ jobs:
           MAILBOX_USER: ${{ secrets.MAILBOX_USER }}
           MONDAY_API_TOKEN: ${{ secrets.MONDAY_API_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # Repeat the verified-source pilot to confirm durable duplicate prevention.
-          DRY_RUN: 'false'
-          PILOT_ONLY: 'true'
-          MAX_CREATES: '1'
+          # Scheduled intake is live; code-update checks remain read-only.
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run || 'true' }}
+          PILOT_ONLY: 'false'
+          MAX_CREATES: ${{ inputs.max_creates || '25' }}
