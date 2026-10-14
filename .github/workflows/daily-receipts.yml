@@ -3,7 +3,7 @@ name: Daily Outlook Receipts To Monday
 on:
   push:
     branches: [main]
-    paths: ['src/import-receipts.mjs', 'test/**', '.github/workflows/daily-receipts.yml']
+    paths: ['src/**', 'test/**', '.github/workflows/daily-receipts.yml']
   schedule:
     # GitHub Actions schedules are UTC. 13:00 UTC is 8:00 AM Central during CDT.
     - cron: "0 13 * * *"
@@ -33,9 +33,15 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Install document readers and OCR
+        run: |
+          python3 -m pip install pypdf==6.10.0 pypdfium2==5.14.0 Pillow==12.3.0
+          sudo apt-get update -qq
+          sudo apt-get install -y tesseract-ocr
+
       - run: npm install
 
-      - run: node --test test/import-receipts.test.mjs
+      - run: node --test test/*.test.mjs
 
       - name: Import receipts
         run: npm start
