@@ -22,16 +22,27 @@ A 2026-10-14 snapshot of the 37 existing Marketing message identities holds
 unreviewed historical backfill. Only individually reconciled messages are allowed.
 
 Before creation, both boards and every group are checked for durable source
-identity, vendor/reference identity, and vendor/date/amount. A source hash and
+identity, vendor/reference identity, vendor/date/amount, and saved attachment content hashes. A source hash and
 original Outlook identity/link are saved in the item creation itself. This does
 not depend on ephemeral runner files or editable transaction fields. One workflow
 run at a time is enforced by GitHub concurrency.
 
 Categories come from current Monday labels. No new labels are created, and Other
 is never silently mapped to Contract. Unknown category/card remains blank.
-Statements, uncertain/zero totals, inferred dates, and attachment-only essential
-values are held for manual source review. The extractor must supply exact body
-excerpts and their amounts/dates must agree with the output.
+Ordinary PDFs, PDF-signature octet-stream files, scanned PDFs and PNG/JPEG/WebP
+receipt images are read locally with pinned pypdf/PDFium/Pillow and Tesseract.
+The existing OpenAI model extracts from email text plus document text/OCR and
+independently checks the original PDF/image. Both readings must agree on vendor,
+transaction date, total type/amount, reference and printed card digits. Exact source
+excerpts must support the output. Paid totals and invoice totals remain distinct;
+balance due never substitutes for a payment total. Unknown card/category stays blank.
+
+New unresolved sources create a Need Information item in Submitted Receipts with
+blank financial fields, source identity/link, an actionable reason, and safely read
+original attachments. Statements, free replacements, multiple transactions and
+uncertain values are review holds, never automatically counted as expenses. Existing
+historical reconciliation holds remain untouched. Unsupported or active documents
+stay in the intact source email and are referenced for manual review.
 
 Receipt attachments are fetched before item creation, uploaded, and read back.
 If an upload fails after creation, a later run resumes missing files on the same
@@ -50,7 +61,7 @@ MICROSOFT_CLIENT_SECRET, MAILBOX_USER, MONDAY_API_TOKEN, OPENAI_API_KEY.
 MAILBOX_USER must be Tony@jtstrategies.net. No additional credentials or Microsoft
 permissions are requested. The importer only uses Microsoft read operations.
 
-Run focused checks with `node --test test/import-receipts.test.mjs`.
+Run focused checks with `node --test test/*.test.mjs`. Production installs the document dependencies from PyPI and the Ubuntu package repository; no new service credentials are needed.
 
 ## Scheduler limitation
 

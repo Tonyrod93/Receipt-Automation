@@ -224,20 +224,27 @@ export function columnValuesFor(receipt, message) {
   return values;
 }
 
+export function receiptChecks(receipt, message) {
+  const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
+  const body = normalize(message.evidenceText ?? plainBody(message.body?.content || message.bodyPreview || ''));
+  const amountEvidence = normalize(receipt.amount_evidence), dateEvidence = normalize(receipt.date_evidence);
+  const date = new Date(receipt.transaction_date || ''), evidenceDate = new Date(dateEvidence);
+  const amounts = amountEvidence.replace(/,/g, '').match(/\d+(?:\.\d{1,2})?/g) || [];
+  return {
+    classification: !!receipt.is_receipt && !receipt.is_statement && !receipt.is_replacement && receipt.confidence === 'high',
+    positiveTotal: Number.isFinite(receipt.total_amount) && receipt.total_amount > 0,
+    transactionDate: /^\d{4}-\d{2}-\d{2}$/.test(receipt.transaction_date || '') && Number.isFinite(date.getTime()) && date.toISOString().slice(0,10) === receipt.transaction_date,
+    amountExcerpt: !!amountEvidence && body.includes(amountEvidence),
+    dateExcerpt: !!dateEvidence && body.includes(dateEvidence),
+    amountValue: amounts.some(amount => Math.round(Number(amount)*100) === Math.round(receipt.total_amount*100)),
+    dateValue: Number.isFinite(evidenceDate.getTime()) && evidenceDate.toISOString().slice(0,10) === receipt.transaction_date,
+    reference: !receipt.reference || body.includes(normalize(receipt.reference)),
+    vendor: !!receipt.vendor?.trim() && body.toLowerCase().includes(normalize(receipt.vendor).toLowerCase())
+  };
+}
+
 export function validateReceipt(receipt, message) {
-  const body = message.evidenceText ?? plainBody(message.body?.content || message.bodyPreview || "");
-  if (!receipt.is_receipt || receipt.is_statement || receipt.is_replacement || receipt.confidence !== "high") return false;
-  if (!receipt.vendor?.trim() || !Number.isFinite(receipt.total_amount) || receipt.total_amount <= 0) return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(receipt.transaction_date || "")) return false;
-  const date = new Date(receipt.transaction_date);
-  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== receipt.transaction_date) return false;
-  if (!receipt.amount_evidence || !receipt.date_evidence || !body.includes(receipt.amount_evidence) || !body.includes(receipt.date_evidence)) return false;
-  const amounts = receipt.amount_evidence.replace(/,/g, "").match(/\d+(?:\.\d{1,2})?/g) || [];
-  if (!amounts.some(amount => Math.round(Number(amount) * 100) === Math.round(receipt.total_amount * 100))) return false;
-  const evidenceDate = new Date(receipt.date_evidence.trim());
-  if (!Number.isFinite(evidenceDate.getTime()) || evidenceDate.toISOString().slice(0, 10) !== receipt.transaction_date) return false;
-  if (receipt.reference && !body.includes(receipt.reference)) return false;
-  return body.toLowerCase().includes(receipt.vendor.trim().toLowerCase());
+  return Object.values(receiptChecks(receipt, message)).every(Boolean);
 }
 
 export function referenceMatch(items, receipt) {
@@ -384,7 +391,7 @@ async function main() {
       try {
         evidence = await extractEvidence(openai, message, documents, CATEGORY_LABELS);
         receipt = evidence.receipt;
-        if (dryRun) console.log(JSON.stringify({check:'receipt-evidence',documents:documents.length,agreement:evidence.agreed,validFields:validateReceipt(receipt,{...message,evidenceText:evidence.text}),receipt:receipt.is_receipt,statement:receipt.is_statement,replacement:receipt.is_replacement}));
+        if (dryRun) console.log(JSON.stringify({check:'receipt-evidence',documents:documents.length,agreement:evidence.agreed,validation:receiptChecks(receipt,{...message,evidenceText:evidence.text}),receipt:receipt.is_receipt,statement:receipt.is_statement,replacement:receipt.is_replacement}));
         if (!evidence.agreed || !validateReceipt(receipt, {...message, evidenceText:evidence.text}) || !['paid_total','invoice_total'].includes(receipt.amount_kind)) {
           holdReason ||= 'The receipt total, transaction date, vendor, reference or payment evidence could not be verified consistently. Check the original document; financial fields are intentionally blank.';
         }
