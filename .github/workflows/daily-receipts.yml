@@ -1,6 +1,9 @@
 name: Daily Outlook Receipts To Monday
 
 on:
+  push:
+    branches: [main]
+    paths: ['src/import-receipts.mjs', 'test/**', '.github/workflows/daily-receipts.yml']
   schedule:
     # GitHub Actions schedules are UTC. 13:00 UTC is 8:00 AM Central during CDT.
     - cron: "0 13 * * *"
